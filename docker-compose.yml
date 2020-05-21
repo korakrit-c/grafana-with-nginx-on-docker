@@ -12,23 +12,72 @@ services:
             - nginx-reverse-storage:/etc/ssl/private
         networks:
             - network_nginx_reverse
+        restart: on-failure
+        depends_on:
+            - grafana_dashboard
+        links:
+            - grafana_dashboard
+
+    db_mysql:
+        container_name: db_mysql
+        hostname: db_mysql
+        #image: mysql
+        #image: mysql/mysql-server
+        image: biarms/mysql:5.7 #Pi4
+        environment:
+            MYSQL_ROOT_PASSWORD: rootpassword
+            MYSQL_DATABASE: grafana
+            MYSQL_USER: grafana
+            MYSQL_PASSWORD: password
+        command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb_monitor_enable=all, --max-connections=1001]
+        ports:
+            - 3306
+        volumes:
+            - mysql-storage:/var/lib/mysql
+        networks:
+            - network_nginx_reverse
+        healthcheck:
+            test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+            timeout: 10s
+            retries: 10
+
     grafana_dashboard:
         container_name: grafana_dashboard
         hostname: grafana_dashboard
         image: grafana/grafana
         ports:
-            - 3000:3000
+            - 3000
         volumes:
             - grafana-storage:/var/lib/grafana
             - grafana-storage:/var/log/grafana
             - grafana-config:/etc/grafana
+        environment:
+            - GF_SERVER_ROOT_URL=http://grafana_dashboard
+            - GF_DATABASE_NAME=grafana
+            - GF_DATABASE_USER=grafana
+            - GF_DATABASE_PASSWORD=password
+            - GF_DATABASE_TYPE=mysql
+            - GF_DATABASE_HOST=db_mysql:3306
+            - GF_DATABASE_MAX_OPEN_CONN=300
+            - GF_SESSION_PROVIDER=mysql
+            - GF_SESSION_PROVIDER_CONFIG=grafana:password@tcp(db_mysql:3306)/grafana?allowNativePasswords=true
+            - GF_SERVER_ROUTER_LOGGING=true
+            - GF_LOG_CONSOLE_FORMAT=json
+            - GF_LOG_FILTERS=alerting.notifier:debug,alerting.notifier.slack:debug,auth:debug
+            - GF_AUTH_TOKEN_ROTATION_INTERVAL_MINUTES=2
         networks:
             - network_nginx_reverse
+        restart: on-failure
+        depends_on:
+            - db_mysql
+        links:
+            - db_mysql
 
 volumes:
     grafana-storage:
     grafana-config:
     nginx-reverse-storage:
+    mysql-storage:
 
 networks:
     network_nginx_reverse:
