@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+    nginx_reverse:
+        container_name: nginx_reverse
+        hostname: nginx_reverse
+        image: nginx
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - nginx-reverse-storage:/etc/nginx
+            - nginx-reverse-storage:/etc/ssl/private
+        networks:
+            - network_nginx_reverse
+    grafana_dashboard:
+        container_name: grafana_dashboard
+        hostname: grafana_dashboard
+        image: grafana/grafana
+        ports:
+            - 3000:3000
+        volumes:
+            - grafana-storage:/var/lib/grafana
+            - grafana-storage:/var/log/grafana
+            - grafana-config:/etc/grafana
+        networks:
+            - network_nginx_reverse
+
+volumes:
+    grafana-storage:
+    grafana-config:
+    nginx-reverse-storage:
+
+networks:
+    network_nginx_reverse:
+        driver: bridge
